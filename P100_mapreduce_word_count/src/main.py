@@ -63,6 +63,60 @@ for _, line in sequence:
     line = line.translate(str.maketrans("", "", string.punctuation))
     line = line.replace("\n", "")
     words = line.split()
-    pairs_sequence.extend([(word, 1) for word in words])            
-            
-            
+    pairs_sequence.extend([(word, 1) for word in words])
+
+# Shuffle and sort
+# -----------------------------------------------------------------------------
+
+pairs_sequence = sorted(pairs_sequence)
+
+# Reducer
+# -----------------------------------------------------------------------------
+
+result = []
+for key, value in pairs_sequence:
+    if result and result[-1][0] == key:
+        result[-1] = (key, result[-1][1] + value)
+    else:
+        result.append((key, value))
+
+# La carpeta de salida debe estar vacia
+# -----------------------------------------------------------------------------
+
+if os.path.exists(OUTPUT_FOLDER):
+    for file in glob.glob(f"{OUTPUT_FOLDER}/*"):
+        os.remove(file)
+else:
+    os.makedirs(OUTPUT_FOLDER)    
+
+# Archivo con el conteo
+# -----------------------------------------------------------------------------
+
+with open(f"{OUTPUT_FOLDER}/part-00000", "w", encoding="utf-8") as f:
+    for key, value in result:
+        f.write(f"{key}\t{value}\n")
+
+
+# Marcador de éxito
+# -----------------------------------------------------------------------------
+
+with open(f"{OUTPUT_FOLDER}/_SUCCESS", "w", encoding="utf-8") as f:
+    f.write("")      
+
+# Copia el resultado desde HDFS simulado al disco local
+# -----------------------------------------------------------------------------
+
+if os.path.exists(SUBMISSION_FOLDER):
+    for file in glob.glob(f"{SUBMISSION_FOLDER}/*"):
+        os.remove(file)
+else:
+    os.makedirs(SUBMISSION_FOLDER)
+
+for file in glob.glob(f"{OUTPUT_FOLDER}/*"):
+    shutil.copy2(file, SUBMISSION_FOLDER)
+
+# Reporte de tiempo de ejecución
+# -----------------------------------------------------------------------------
+
+end_time = time.time()
+print(f"Tiempo de ejecución: {end_time - start_time:.2f} segundos")    
