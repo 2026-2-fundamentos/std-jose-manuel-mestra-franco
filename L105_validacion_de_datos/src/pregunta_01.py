@@ -1,3 +1,8 @@
+import pandas as pd
+import json
+import re
+from pathlib import Path
+
 def main():
     """
     Antes de limpiar o analizar un conjunto de datos, un analista debe
@@ -48,4 +53,105 @@ def main():
         }
     """
 
-    raise NotImplementedError
+
+
+    file_path = (
+        Path(__file__).resolve().parents[1]
+        / "data"
+        / "ventas.csv.gz"
+    )
+
+    df = pd.read_csv(file_path, compression="gzip")
+
+    df.columns = (
+        df.columns.astype(str)
+        .str.replace("\ufeff", "", regex=False)
+        .str.strip()
+        .str.lower()
+        .str.replace(" ", "_", regex=False)
+    )
+
+    required_columns = [
+        "supplier_id",
+        "supplier",
+        "country",
+        "city",
+        "purchase_date",
+        "amount",
+        "discount",
+        "weight",
+        "units",
+        "unit_price",
+        "contact_email",
+    ]
+
+    missing_value_count_by_column = (
+        (df.isna()) | (df == "") | (df == "N/A")
+    ).sum().to_dict()
+
+    invalid_email_count = df["contact_email"].apply(
+        lambda x: (
+            pd.notna(x)
+            and not bool(
+                re.fullmatch(
+                    r"[^@\s]+@[^@\s]+\.[^@\s]+",
+                    str(x),
+                )
+            )
+        )
+    ).sum()
+
+    invalid_unit_count = df["units"].apply(
+        lambda x: (
+            pd.notna(x)
+            and not (
+                float(x).is_integer()
+                and float(x) > 0
+            )
+        )
+    ).sum()
+
+    report = {
+        "row_count": len(df),
+        "column_count": len(df.columns),
+        "missing_required_columns": sorted(
+            [col for col in required_columns if col not in df.columns]
+        ),
+        "unexpected_columns": sorted(
+            [col for col in df.columns if col not in required_columns]
+        ),
+        "duplicate_row_count": int(df.duplicated().sum()),
+        "duplicate_supplier_id_row_count": int(
+            df["supplier_id"].duplicated(keep=False).sum()
+        ),
+        "missing_value_count_by_column": {
+            k: int(v)
+            for k, v in missing_value_count_by_column.items()
+        },
+        "invalid_email_count": int(invalid_email_count),
+        "invalid_unit_count": int(invalid_unit_count),
+        "country_values": sorted(
+            df["country"].dropna().unique().tolist()
+        ),
+    }
+
+    submission_path = (
+        Path(__file__).resolve().parents[1]
+        / "submission"
+    )
+
+    submission_path.mkdir(exist_ok=True)
+
+    output_file = (
+        submission_path
+        / "data_quality_report.json"
+    )
+
+    with open(output_file, "w", encoding="utf-8") as file:
+        json.dump(report, file, indent=2)
+
+    return report
+
+
+if __name__ == "__main__":
+    print(main())

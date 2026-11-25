@@ -26,4 +26,23 @@ def pregunta_01():
         ...
     """
 
-    raise NotImplementedError
+    import pandas as pd
+    from pathlib import Path
+
+    base_path = Path(__file__).resolve().parents[1] / "data"
+
+    for division in ["train", "test"]:
+        data = []
+        division_path = base_path / division
+
+        for sentiment in ["negative", "neutral", "positive"]:
+            sentiment_path = division_path / sentiment
+
+            for file_path in sorted(sentiment_path.glob("*.txt")):
+                with open(file_path, "r", encoding="utf-8") as file:
+                    phrase = file.read().strip()
+                    data.append({"phrase": phrase, "target": sentiment})
+
+        df = pd.DataFrame(data)
+        output_path = Path(__file__).resolve().parents[1] / "submission" / f"{division}_dataset.csv"
+        df.to_csv(output_path, index=False)
